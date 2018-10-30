@@ -48,8 +48,47 @@ models = models %>%
 protein_master = left_join(plant_protein_samples, models, by = "run_id")
 
 #predicting protein values
-protein_master %>%
+protein_master_sub = protein_master %>%
   mutate(protein = abs*slope + intercept) %>%
   select(sample_id, run_id, plant_id, age, protein) %>%
   group_by(plant_id, age) %>%
   summarize(mean_protein = mean(protein, na.rm = TRUE))
+
+plant_master %>%
+  select(-carb, -protein) %>%
+  left_join(protein_master_sub) %>%
+  mutate(age = as.factor(age),
+         species = as.factor(species)) %>%
+  ggplot(aes(x = species, y = mean_protein)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.1) +
+  facet_wrap(~ age) +
+  theme_classic()
+
+plant_master = plant_master %>%
+  #select(-carb, -protein) %>%
+  left_join(protein_master_sub) %>%
+  mutate(age = as.factor(age),
+         species = as.factor(species)) %>%
+  filter(!is.na(mean_protein)) %>%
+  group_by(plant_id, age, species) %>%
+  summarize(mean_protein = mean(mean_protein))
+
+plant_master = ungroup(plant_master)
+
+#messing around with models - probably something nested
+library(lme4)
+library(nlme)
+
+plant_master = plant_master %>%
+  mutate(plant_id = as.factor(plant_id))
+
+lm_protein = lm(mean_protein ~ species*age, data = plant_master)
+
+anova(lm_protein)
+
+plant_master %>%
+  ggplot(aes(x = species, y = mean_protein, fill = age)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.5) +
+  theme_classic()
