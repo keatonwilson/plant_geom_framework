@@ -116,7 +116,7 @@ library(nlme)
 plant_master = plant_master %>%
   mutate(plant_id = as.factor(plant_id))
 
-lmm_1 = lme(mean_protein ~ species*age, random = ~1|plant_id, na.action = na.omit, data = plant_master)
+lmm_1 = lme(mean_protein ~ species + age, random = ~1|plant_id, na.action = na.omit, data = plant_master)
 summary(lmm_1)
 
 lm_protein = lm(mean_protein ~ species + age, data = plant_master)
