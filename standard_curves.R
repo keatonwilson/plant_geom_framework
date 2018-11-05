@@ -57,18 +57,18 @@ protein_master = left_join(plant_protein_samples, models, by = "run_id")
 #
 #Example from the web
 
-exampleTable <- data.frame(
-  x = c(1:5, 1:5),
-  y = c((1:5) + rnorm(5), 2*(5:1)),
-  groups = rep(LETTERS[1:2], each = 5)
-)
+# exampleTable <- data.frame(
+# x = c(1:5, 1:5),
+#  y = c((1:5) + rnorm(5), 2*(5:1)),
+#  groups = rep(LETTERS[1:2], each = 5)
+#)
 
-exampleTable %>% 
-  group_by(groups) %>%
-  nest() %>% 
-  mutate(model = data %>% map(~lm(y ~ x, data = .))) %>% 
-  mutate(Pred = map2(model, data, predict)) %>% 
-  unnest(Pred, data)
+#exampleTable %>% 
+#  group_by(groups) %>%
+#  nest() %>% 
+#  mutate(model = data %>% map(~lm(y ~ x, data = .))) %>% 
+#  mutate(Pred = map2(model, data, predict)) %>% 
+#  unnest(Pred, data)
 
 #Loop to do predictions on a row by row basis
 protein_pred = c()
@@ -78,7 +78,6 @@ for (i in 1:length(protein_master$sample_id)) {
 
 protein_master_sub = protein_master %>%
   bind_cols(protein = protein_pred) %>%
-  select(sample_id, run_id, plant_id, age, protein) %>%
   group_by(plant_id, age) %>%
   summarize(mean_protein = mean(protein, na.rm = TRUE))
 
@@ -107,7 +106,9 @@ plant_master = ungroup(plant_master)
 #Some of these values are extreme - a value of 40 here corresponds to ~ 65% protein by dry weight. These are definitely outliers. Let's remove them. 
 
 plant_master = plant_master %>%
-  filter(mean_protein < 25 & mean_protein > 0)
+  filter(mean_protein < 25 & mean_protein > 0) %>%
+  mutate(protein_weight = (((mean_protein/60)*1000)/50)*1000,
+         protein_percent = (protein_weight/1000)/20)
 
 #messing around with models - probably something nested
 library(lme4)
@@ -116,7 +117,7 @@ library(nlme)
 plant_master = plant_master %>%
   mutate(plant_id = as.factor(plant_id))
 
-lmm_1 = lme(mean_protein ~ species + age, random = ~1|plant_id, na.action = na.omit, data = plant_master)
+lmm_1 = lme(protein_weight ~ species + age, random = ~1|plant_id, na.action = na.omit, data = plant_master)
 summary(lmm_1)
 
 lm_protein = lm(mean_protein ~ species + age, data = plant_master)
@@ -125,7 +126,7 @@ anova(lm_protein)
 
 plant_master %>%
   filter(mean_protein > 0) %>%
-  ggplot(aes(x = species, y = mean_protein, fill = age)) +
+  ggplot(aes(x = species, y = protein_percent, fill = age)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.5) +
   theme_classic()
@@ -137,3 +138,5 @@ ggplot(aes(x = species, y = mean_protein)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(width = 0.1) +
   theme_classic()
+
+
