@@ -103,40 +103,94 @@ plant_master = plant_master %>%
 
 plant_master = ungroup(plant_master)
 
-#Some of these values are extreme - a value of 40 here corresponds to ~ 65% protein by dry weight. These are definitely outliers. Let's remove them. 
 
-plant_master = plant_master %>%
-  filter(mean_protein < 25 & mean_protein > 0) %>%
-  mutate(protein_weight = (((mean_protein/60)*1000)/50)*1000,
-         protein_percent = (protein_weight/1000)/20)
+#Carb stuff
+plant_carb_curves
 
-#messing around with models - probably something nested
-library(lme4)
-library(nlme)
+#let's visually inspect the standard curves
+ggplot(plant_carb_curves, aes(x = abs, y = standard_carbs)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  facet_wrap(~ run_id)
 
-plant_master = plant_master %>%
+#generating linear models for plant protein
+nested_carb_curves = plant_carb_curves %>%
+  filter(!is.na(abs)) %>%
+  group_by(run_id) %>%
+  nest()
+
+#custom lm function to feed into map
+carb_lm = function(df) {
+  lm(standard_carbs ~ abs, data = df)
+}
+
+#iterating across the nested data
+models_carb = nested_carb_curves %>%
+  mutate(models = map(data, carb_lm))
+
+get_rsq = function(mod) glance(mod)$r.squared
+
+models_carb = models_carb %>%
+  mutate(r.squared = map_dbl(models, get_rsq))
+
+#joining this data (including the models) onto the protein samples data frame
+carb_master = left_join(plant_carb_samples, models_carb, by = "run_id")
+
+carb_master = carb_master %>%
+  filter(!is.na(abs))
+#Loop to do predictions on a row by row basis
+carb_pred = c()
+for (i in 1:length(carb_master$sample_id)) {
+  carb_pred[i] = predict(carb_master$models[[i]], newdata = carb_master[i,])
+}
+
+carb_master_sub = carb_master %>%
+  bind_cols(carb = carb_pred) %>%
+  group_by(plant_id, age) %>%
+  summarize(mean_carb = mean(carb, na.rm = TRUE)) %>%
+  ungroup()
+
+carb_master_sub$age = str_replace_all(carb_master_sub$age, c("old" = "O", "young" = "Y"))
+carb_master_sub = carb_master_sub %>%
+  filter(!is.na(age)) %>%
+  mutate(age = as.factor(age)) %>%
   mutate(plant_id = as.factor(plant_id))
 
-lmm_1 = lme(protein_weight ~ species + age, random = ~1|plant_id, na.action = na.omit, data = plant_master)
-summary(lmm_1)
+#warnings()
+#plant_master %>%
+# select(-carb, -protein) %>%
+#  left_join(protein_master_sub) %>%
+#  mutate(age = as.factor(age),
+#         species = as.factor(species)) %>%
+#  ggplot(aes(x = species, y = mean_protein)) +
+#  geom_boxplot() +
+#  geom_jitter(width = 0.1) +
+#  facet_wrap(~ age) +
+#  theme_classic()
+#  
 
-lm_protein = lm(mean_protein ~ species + age, data = plant_master)
-
-anova(lm_protein)
-
-plant_master %>%
-  filter(mean_protein > 0) %>%
-  ggplot(aes(x = species, y = protein_percent, fill = age)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.5) +
-  theme_classic()
-
-#What happens if we combine?
-
-plant_master %>%
-ggplot(aes(x = species, y = mean_protein)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(width = 0.1) +
-  theme_classic()
+carb_master_sub = carb_master_sub %>%
+  mutate(carb_weight = (mean_carb/15)*1000,
+         carb_percent = (carb_weight/1000)/20)
 
 
+plant_master = plant_master %>%
+  mutate(plant_id = as.factor(plant_id)) %>%
+  #select(-carb, -protein) %>%
+  left_join(carb_master_sub)
+
+plant_master_gs = gs_read(plant, ws = 1) #turning it into a dataframe/tibble
+
+plant_master_master = plant_master_gs %>%
+  mutate(plant_id = as.character(plant_id)) %>%
+  left_join(plant_master)
+
+#Cleaning up
+library(tidyverse)
+library(lubridate)
+
+plant_master_master = plant_master_master %>%
+  mutate(plant_id = as.factor(plant_id),
+         tp_date = ymd(tp_date),
+         age = as.factor(age), 
+         species = as.factor(species))
