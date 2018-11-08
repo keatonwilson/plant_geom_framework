@@ -79,7 +79,7 @@ for (i in 1:length(protein_master$sample_id)) {
 protein_master_sub = protein_master %>%
   bind_cols(protein = protein_pred) %>%
   group_by(plant_id, age) %>%
-  summarize(mean_protein = mean(protein, na.rm = TRUE))
+  summarize(mean_protein = median(protein, na.rm = TRUE))
 
 #plant_master %>%
  # select(-carb, -protein) %>%
@@ -97,11 +97,15 @@ plant_master = plant_master %>%
   left_join(protein_master_sub) %>%
   mutate(age = as.factor(age),
          species = as.factor(species)) %>%
-  filter(!is.na(mean_protein)) %>%
+  #filter(!is.na(mean_protein)) %>%
   group_by(plant_id, age, species) %>%
-  summarize(mean_protein = mean(mean_protein))
+  summarize(mean_protein = median(mean_protein))
 
 plant_master = ungroup(plant_master)
+
+plant_master = plant_master %>%
+  mutate(protein_weight = (((mean_protein/60)*1000)/50)*1000,
+         protein_percent = (protein_weight/1000)/20)
 
 
 #Carb stuff
@@ -147,7 +151,7 @@ for (i in 1:length(carb_master$sample_id)) {
 carb_master_sub = carb_master %>%
   bind_cols(carb = carb_pred) %>%
   group_by(plant_id, age) %>%
-  summarize(mean_carb = mean(carb, na.rm = TRUE)) %>%
+  summarize(mean_carb = median(carb, na.rm = TRUE)) %>%
   ungroup()
 
 carb_master_sub$age = str_replace_all(carb_master_sub$age, c("old" = "O", "young" = "Y"))
@@ -193,4 +197,8 @@ plant_master_master = plant_master_master %>%
   mutate(plant_id = as.factor(plant_id),
          tp_date = ymd(tp_date),
          age = as.factor(age), 
-         species = as.factor(species))
+         species = as.factor(species)) %>%
+  select(-protein, -carb)
+
+glimpse(plant_master_master)
+summary(plant_master_master)
