@@ -8,7 +8,7 @@ library(tidyverse)
 library(lubridate)
 
 #Need to pull in and run data manipulation on raw data from google sheets first
-source("./scripts/standard_curves_merging.R")
+#source("./scripts/standard_curves_merging.R")
 
 #Making sure the dataframe is loaded
 plants = plant_master_master
@@ -35,10 +35,9 @@ View(plants %>%
   select(plant_id, age, species, mean_carb, carb_weight, carb_percent))
 
 plants_filtered = plants %>%
-  filter(protein_weight > 0 & carb_percent < 1)
+  filter(protein_weight > 0 & protein_percent < 0.75 & carb_percent < 0.80 )
 
 #Also generating a time period between transplant and collection (proxy for age)
-
 plants_filtered = plants_filtered %>%
   mutate(time_lag_interval = interval(tp_date, collect_date),
          time_lag = time_lag_interval %/% days(1)) %>%
@@ -56,7 +55,6 @@ plants_filtered %>%
   theme_classic()
 
 #carbs
-
 plants_filtered %>%
   ggplot(aes(x = species, y = carb_percent, fill = age)) +
   geom_boxplot(outlier.shape = NA) +
@@ -93,6 +91,7 @@ summary(lmm_3_c)
 
 #Correlation between protein and carbohydrates?
 lm_both = lm(protein_percent ~ carb_percent, data = plants_filtered)
+summary(lm_both)
 
 #Nutrient space figure
 library(car)
@@ -140,3 +139,11 @@ plants_filtered %>%
   coord_cartesian(xlim = c(0,1), ylim = c(0,1)) +
   theme_classic()
 
+#Calculating p:c ratios
+
+plants_filtered %>%
+  mutate(p_c = protein_weight/carb_weight) %>%
+  ggplot(aes(x = species, y = p_c, fill = age)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.5) +
+  theme_classic()
