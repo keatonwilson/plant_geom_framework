@@ -49,8 +49,14 @@ get_rsq = function(mod) glance(mod)$r.squared
 models = models %>%
   mutate(r.squared = map_dbl(models, get_rsq))
 
+#Some of these are not good - let's not use any samples with an R^2 less than 0.
+
 #joining this data (including the models) onto the protein samples data frame
 protein_master = left_join(plant_protein_samples, models, by = "run_id")
+
+#Getting rid of bad runs (#16 runID above - horrible R^2)
+protein_master = protein_master %>% 
+  filter(r.squared > 0.6)
 
 #Might be able to do this with predict(), particularly if we end up using some non-linear standard curves
 #predicting protein values
@@ -139,6 +145,10 @@ models_carb = models_carb %>%
 
 #joining this data (including the models) onto the protein samples data frame
 carb_master = left_join(plant_carb_samples, models_carb, by = "run_id")
+
+#Filtering out less than 0.7 R^2
+carb_master = carb_master %>%
+  filter(r.squared > 0.7)
 
 carb_master = carb_master %>%
   filter(!is.na(abs))

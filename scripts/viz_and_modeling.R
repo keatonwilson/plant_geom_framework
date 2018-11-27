@@ -71,14 +71,44 @@ summary(lm_height)
 
 plot(protein_percent ~ time_lag, data = plants_filtered)
 
+
+#Some data exploration
+library(car)
+library(MASS)
+
+qqp(logit(plants_filtered$protein_percent), "norm")
+logit(plants_filtered$protein_percent)
+
+lmm = lmer(logit(protein_percent) ~ species + age + (1|plant_id), data = plants_filtered, REML = FALSE)
+summary(lmm)
+Anova(lmm)
+
+#Example lme code from Meck's stuff
+##Random slopes and intercepts - this model is actually better based on AIC
+# fm2 = lme(log(CatWeight)~Time*Treatment, data = subset(manducaalive, manducaalive$Round != "9"),
+#           random = ~1+Time|TrueID, na.action = na.omit)
+
 lmm_0 = lme(protein_percent ~ 1, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
 summary(lmm_0)
-lmm_1 = lme(protein_percent ~ species, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
+lmm_1 = lme(protein_percent ~ species, random = ~1+species|plant_id, na.action = na.omit, data = plants_filtered)
 summary(lmm_1)
-lmm_2 = lme(protein_percent ~ species + age, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
+lmm_2 = lme(protein_percent ~ species + age, random = ~1+species|plant_id, na.action = na.omit, data = plants_filtered)
 summary(lmm_2)
-lmm_3 = lme(protein_percent ~ species * age, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
+lmm_3 = lme(protein_percent ~ species * age, random = ~1+species|plant_id, na.action = na.omit, data = plants_filtered)
 summary(lmm_3)
+
+AIC(lmm_0)
+AIC(lmm_1)
+AIC(lmm_2)
+AIC(lmm_3)
+
+lmm0 = lmer(protein_percent ~ 1 + (1|plant_id), data = plants_filtered)
+summary(lmm0)
+AIC(lmm0)
+
+lmm1 = lmer(protein_percent ~ species + (1|plant_id), data = plants_filtered)
+summary(lmm1)
+AIC(lmm1)
 
 lmm_0_c = lme(carb_percent ~ 1, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
 summary(lmm_0_c)
@@ -88,6 +118,10 @@ lmm_2_c = lme(carb_percent ~ species + age, random = ~1|plant_id, na.action = na
 summary(lmm_2_c)
 lmm_3_c = lme(carb_percent ~ species * age, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
 summary(lmm_3_c)
+
+lmm = lmer(logit(carb_percent) ~ species + age + (1|plant_id), data = plants_filtered, REML = FALSE)
+summary(lmm)
+Anova(lmm)
 
 #Correlation between protein and carbohydrates?
 lm_both = lm(protein_percent ~ carb_percent, data = plants_filtered)
