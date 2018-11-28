@@ -18,6 +18,8 @@ plants
 ggplot(plants, aes(x = protein_percent)) +
   geom_histogram()
 
+#Actually looks good after preprocessing in earlier script - but let's remove wonky stuff anyway
+
 plants %>%
   filter(protein_weight > 10000 | protein_weight < 0) %>%
   select(protein_weight, mean_protein, protein_percent, plant_id, age)
@@ -37,12 +39,14 @@ View(plants %>%
 plants_filtered = plants %>%
   filter(protein_weight > 0 & protein_percent < 0.75 & carb_percent < 0.80 )
 
+ggplot(plants_filtered, aes(x = carb_percent)) +
+  geom_histogram()
+
 #Also generating a time period between transplant and collection (proxy for age)
 plants_filtered = plants_filtered %>%
   mutate(time_lag_interval = interval(tp_date, collect_date),
          time_lag = time_lag_interval %/% days(1)) %>%
   select(-tp_date, -collect_date, -time_lag_interval)
-
 
 #Preliminary Visualization
 
@@ -51,14 +55,14 @@ plants_filtered %>%
   filter(mean_protein > 0) %>%
   ggplot(aes(x = species, y = protein_percent, fill = age)) +
   geom_boxplot(outlier.shape = NA) +
-  geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.5) +
+  geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.2) +
   theme_classic()
 
 #carbs
 plants_filtered %>%
   ggplot(aes(x = species, y = carb_percent, fill = age)) +
   geom_boxplot(outlier.shape = NA) +
-  geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.5) +
+  geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.2) +
   theme_classic()
 
 #messing around with models - probably something nested
@@ -66,62 +70,36 @@ library(lme4)
 library(nlme)
 
 #Just out of curiosity - effect of size and time-lag
-lm_height = lm(protein_percent ~ time_lag , data = plants_filtered)
+lm_height_protein = lm(protein_percent ~ time_lag , data = plants_filtered)
+lm_height_carb = lm(carb_percent ~ time_lag, data = plants_filtered)
 summary(lm_height)
+summary(lm_height_carb)
 
-plot(protein_percent ~ time_lag, data = plants_filtered)
+#They both have an effect, but the effect size is relatively small. We can add it as a covariate.
 
-
-#Some data exploration
+#Serious modeling
 library(car)
 library(MASS)
 
+#Look at transformation - because we want to model percent, a logit transformation is appropriate - makes our data closer to normal
+qqp(plants_filtered$protein_percent, "norm")
 qqp(logit(plants_filtered$protein_percent), "norm")
 logit(plants_filtered$protein_percent)
 
-lmm = lmer(logit(protein_percent) ~ species + age + (1|plant_id), data = plants_filtered, REML = FALSE)
+#protein model
+lmm = lmer(logit(protein_percent) ~ species + age + time_lag + (1|plant_id), data = plants_filtered, REML = FALSE)
 summary(lmm)
 Anova(lmm)
 
-#Example lme code from Meck's stuff
-##Random slopes and intercepts - this model is actually better based on AIC
-# fm2 = lme(log(CatWeight)~Time*Treatment, data = subset(manducaalive, manducaalive$Round != "9"),
-#           random = ~1+Time|TrueID, na.action = na.omit)
+#Result is that there is a significant effect of age, but not species on protein. Not huge differences.
 
-lmm_0 = lme(protein_percent ~ 1, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
-summary(lmm_0)
-lmm_1 = lme(protein_percent ~ species, random = ~1+species|plant_id, na.action = na.omit, data = plants_filtered)
-summary(lmm_1)
-lmm_2 = lme(protein_percent ~ species + age, random = ~1+species|plant_id, na.action = na.omit, data = plants_filtered)
-summary(lmm_2)
-lmm_3 = lme(protein_percent ~ species * age, random = ~1+species|plant_id, na.action = na.omit, data = plants_filtered)
-summary(lmm_3)
 
-AIC(lmm_0)
-AIC(lmm_1)
-AIC(lmm_2)
-AIC(lmm_3)
-
-lmm0 = lmer(protein_percent ~ 1 + (1|plant_id), data = plants_filtered)
-summary(lmm0)
-AIC(lmm0)
-
-lmm1 = lmer(protein_percent ~ species + (1|plant_id), data = plants_filtered)
-summary(lmm1)
-AIC(lmm1)
-
-lmm_0_c = lme(carb_percent ~ 1, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
-summary(lmm_0_c)
-lmm_1_c = lme(carb_percent ~ species, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
-summary(lmm_1_c)
-lmm_2_c = lme(carb_percent ~ species + age, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
-summary(lmm_2_c)
-lmm_3_c = lme(carb_percent ~ species * age, random = ~1|plant_id, na.action = na.omit, data = plants_filtered)
-summary(lmm_3_c)
-
-lmm = lmer(logit(carb_percent) ~ species + age + (1|plant_id), data = plants_filtered, REML = FALSE)
+#Carbs
+lmm = lmer(logit(carb_percent) ~ species + age + time_lag + (1|plant_id), data = plants_filtered, REML = FALSE)
 summary(lmm)
 Anova(lmm)
+
+#Main result here is that there is a significant effect of species, but not age - also time-lag is more improtant here. The older plants had more carbs.
 
 #Correlation between protein and carbohydrates?
 lm_both = lm(protein_percent ~ carb_percent, data = plants_filtered)
@@ -176,6 +154,7 @@ plants_filtered %>%
 #Calculating p:c ratios
 
 plants_filtered %>%
+  filter(carb_percent < 0.75) %>%
   mutate(p_c = protein_weight/carb_weight) %>%
   ggplot(aes(x = species, y = p_c, fill = age)) +
   geom_boxplot(outlier.shape = NA) +

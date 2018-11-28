@@ -49,7 +49,7 @@ get_rsq = function(mod) glance(mod)$r.squared
 models = models %>%
   mutate(r.squared = map_dbl(models, get_rsq))
 
-#Some of these are not good - let's not use any samples with an R^2 less than 0.
+#Some of these are not good - let's not use any samples with an R^2 less than 0.6
 
 #joining this data (including the models) onto the protein samples data frame
 protein_master = left_join(plant_protein_samples, models, by = "run_id")
@@ -120,7 +120,7 @@ plant_carb_curves
 #let's visually inspect the standard curves
 ggplot(plant_carb_curves, aes(x = abs, y = standard_carbs)) +
   geom_point() +
-  geom_smooth(method = "lm") +
+  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) +
   facet_wrap(~ run_id)
 
 #generating linear models for plant protein
@@ -131,7 +131,7 @@ nested_carb_curves = plant_carb_curves %>%
 
 #custom lm function to feed into map
 carb_lm = function(df) {
-  lm(standard_carbs ~ abs, data = df)
+  lm(standard_carbs ~ poly(abs, 2), data = df)
 }
 
 #iterating across the nested data
