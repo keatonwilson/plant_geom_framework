@@ -3,7 +3,6 @@
 #2018-10-30
 #keatonwilson@me.com
 
-
 #libraries
 library(tidyverse)
 library(googlesheets)
@@ -29,7 +28,7 @@ ggplot(plant_protein_curves, aes(x = abs, y = standard_protein)) +
 
 #They look curvilinear (2nd order polynomial), so let's use that. 
 
-#generating linear models for plant protein
+#generating models for plant protein
 nested_protein_curves = plant_protein_curves %>%
   filter(!is.na(abs)) %>%
   group_by(run_id) %>%
@@ -55,8 +54,8 @@ models = models %>%
 protein_master = left_join(plant_protein_samples, models, by = "run_id")
 
 #Getting rid of bad runs (#16 runID above - horrible R^2)
-protein_master = protein_master %>% 
-  filter(r.squared > 0.6)
+#protein_master = protein_master %>% 
+#  filter(r.squared > 0.6)
 
 #Might be able to do this with predict(), particularly if we end up using some non-linear standard curves
 #predicting protein values
@@ -120,10 +119,10 @@ plant_carb_curves
 #let's visually inspect the standard curves
 ggplot(plant_carb_curves, aes(x = abs, y = standard_carbs)) +
   geom_point() +
-  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) +
+  geom_smooth(method = "lm") +
   facet_wrap(~ run_id)
 
-#generating linear models for plant protein
+#generating linear models for plant carbs
 nested_carb_curves = plant_carb_curves %>%
   filter(!is.na(abs)) %>%
   group_by(run_id) %>%
@@ -131,7 +130,7 @@ nested_carb_curves = plant_carb_curves %>%
 
 #custom lm function to feed into map
 carb_lm = function(df) {
-  lm(standard_carbs ~ poly(abs, 2), data = df)
+  lm(standard_carbs ~ abs, data = df)
 }
 
 #iterating across the nested data
@@ -147,11 +146,12 @@ models_carb = models_carb %>%
 carb_master = left_join(plant_carb_samples, models_carb, by = "run_id")
 
 #Filtering out less than 0.7 R^2
-carb_master = carb_master %>%
-  filter(r.squared > 0.7)
+#carb_master = carb_master %>%
+  #filter(r.squared > 0.7)
 
 carb_master = carb_master %>%
   filter(!is.na(abs))
+
 #Loop to do predictions on a row by row basis
 carb_pred = c()
 for (i in 1:length(carb_master$sample_id)) {
@@ -187,6 +187,10 @@ carb_master_sub = carb_master_sub %>%
   mutate(carb_weight = (mean_carb/15)*1000,
          carb_percent = (carb_weight/1000)/20)
 
+#Weird negative values
+carb_master_sub %>%
+  filter(mean_carb < 0)
+
 
 plant_master = plant_master %>%
   mutate(plant_id = as.factor(plant_id)) %>%
@@ -212,3 +216,8 @@ plant_master_master = plant_master_master %>%
 
 glimpse(plant_master_master)
 summary(plant_master_master)
+
+#Why are there negative carb_percents?
+View(plant_master_master %>%
+  filter(carb_percent < 0) %>%
+  dplyr::select(plant_id, age, mean_carb, carb_weight, carb_percent))

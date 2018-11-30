@@ -6,20 +6,19 @@
 #Libraries
 library(tidyverse)
 library(lubridate)
+library(skimr)
 
 #Need to pull in and run data manipulation on raw data from google sheets first
 #source("./scripts/standard_curves_merging.R")
 
 #Making sure the dataframe is loaded
 plants = plant_master_master
-plants
 
 #Let's address outliers
 ggplot(plants, aes(x = protein_percent)) +
   geom_histogram()
 
 #Actually looks good after preprocessing in earlier script - but let's remove wonky stuff anyway
-
 plants %>%
   filter(protein_weight > 10000 | protein_weight < 0) %>%
   select(protein_weight, mean_protein, protein_percent, plant_id, age)
@@ -31,13 +30,13 @@ plants = plants %>%
 ggplot(plants, aes(x = carb_percent)) +
   geom_histogram()
 
-#More problems here. Everything above 100% doesn't make sense. 
+#More problems here. Everything above 100% doesn't make sense - same cutoff as protein 
 View(plants %>%
   filter(carb_percent > 0.75) %>%
   select(plant_id, age, species, mean_carb, carb_weight, carb_percent))
 
 plants_filtered = plants %>%
-  filter(protein_weight > 0 & protein_percent < 0.75 & carb_percent < 0.80 )
+  filter(protein_weight > 0 & protein_percent < 0.75 & carb_percent < 0.75 & carb_percent > 0)
 
 ggplot(plants_filtered, aes(x = carb_percent)) +
   geom_histogram()
@@ -46,7 +45,7 @@ ggplot(plants_filtered, aes(x = carb_percent)) +
 plants_filtered = plants_filtered %>%
   mutate(time_lag_interval = interval(tp_date, collect_date),
          time_lag = time_lag_interval %/% days(1)) %>%
-  select(-tp_date, -collect_date, -time_lag_interval)
+  dplyr::select(-tp_date, -collect_date, -time_lag_interval)
 
 #Preliminary Visualization
 
@@ -72,7 +71,7 @@ library(nlme)
 #Just out of curiosity - effect of size and time-lag
 lm_height_protein = lm(protein_percent ~ time_lag , data = plants_filtered)
 lm_height_carb = lm(carb_percent ~ time_lag, data = plants_filtered)
-summary(lm_height)
+summary(lm_height_protein)
 summary(lm_height_carb)
 
 #They both have an effect, but the effect size is relatively small. We can add it as a covariate.
@@ -143,13 +142,18 @@ ggplot(data_sub, aes(fill = species, color = species)) +
 plants_filtered %>%
   filter(carb_percent < 0.75) %>%
   ggplot(aes(x = protein_percent, y = carb_percent, fill = species)) +
-  stat_density_2d(geom = "polygon", alpha = 0.3) +
+  stat_density_2d(geom = "polygon", alpha = 0.2) +
   geom_abline(slope = 1, intercept = 0, lty = 2) +
   facet_wrap(~ species) +
   xlim(c(-1, 1)) +
   ylim(c(-1, 1)) +
-  coord_cartesian(xlim = c(0,1), ylim = c(0,1)) +
-  theme_classic()
+  coord_cartesian(xlim = c(0,0.75), ylim = c(0,0.75)) +
+  theme_classic() + 
+  geom_abline(slope = 37/31, intercept = 0) + #Control
+geom_abline(slope = 35/18, intercept = 0) + #Low Protein
+geom_abline(slope = 28/30, intercept = 0) + #Low Carb
+geom_abline(slope = 35/21, intercept = 0) + #Medium Protein
+geom_abline(slope = (25/30), intercept = 0) #Ultra Low Carb
 
 #Calculating p:c ratios
 
