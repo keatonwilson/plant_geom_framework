@@ -50,19 +50,23 @@ plants_filtered = plants_filtered %>%
 #Preliminary Visualization
 
 #Protein
-plants_filtered %>%
+protein_percent = plants_filtered %>%
   filter(mean_protein > 0) %>%
   ggplot(aes(x = species, y = protein_percent, fill = age)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.2) +
   theme_classic()
 
+ggsave(filename = "./output/protein_percent.png", protein_percent, device = "png")
+
 #carbs
-plants_filtered %>%
+carb_percent = plants_filtered %>%
   ggplot(aes(x = species, y = carb_percent, fill = age)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.2) +
   theme_classic()
+
+ggsave(filename = "./output/carb_percent.png", carb_percent, device = "png")
 
 #messing around with models - probably something nested
 library(lme4)
@@ -139,21 +143,23 @@ ggplot(data_sub, aes(fill = species, color = species)) +
                    xend = protein_percent_median)) +
   facet_wrap(~ age)
 
-plants_filtered %>%
+nutrient_space = plants_filtered %>%
   filter(carb_percent < 0.75) %>%
   ggplot(aes(x = protein_percent, y = carb_percent, fill = species)) +
   stat_density_2d(geom = "polygon", alpha = 0.2) +
-  geom_abline(slope = 1, intercept = 0, lty = 2) +
+  geom_abline(slope = 1, intercept = 0, lty = 2, alpha = 0.4) +
   facet_wrap(~ species) +
   xlim(c(-1, 1)) +
   ylim(c(-1, 1)) +
   coord_cartesian(xlim = c(0,0.75), ylim = c(0,0.75)) +
   theme_classic() + 
-  geom_abline(slope = 37/31, intercept = 0) + #Control
-geom_abline(slope = 35/18, intercept = 0) + #Low Protein
-geom_abline(slope = 28/30, intercept = 0) + #Low Carb
-geom_abline(slope = 35/21, intercept = 0) + #Medium Protein
-geom_abline(slope = (25/30), intercept = 0) #Ultra Low Carb
+  geom_abline(slope = 37/31, intercept = 0, alpha = 0.4) + #Control
+geom_abline(slope = 35/18, intercept = 0, alpha = 0.4) + #Low Protein
+geom_abline(slope = 28/30, intercept = 0, alpha = 0.4) + #Low Carb
+geom_abline(slope = 35/21, intercept = 0, alpha = 0.4) + #Medium Protein
+geom_abline(slope = (25/30), intercept = 0, alpha = 0.4) #Ultra Low Carb
+
+ggsave(filename = "./output/nutrient_space.png", nutrient_space, device = "png")
 
 #Calculating p:c ratios
 
