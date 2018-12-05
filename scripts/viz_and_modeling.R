@@ -169,4 +169,24 @@ plants_filtered %>%
   ggplot(aes(x = species, y = p_c, fill = age)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.5) +
-  theme_classic()
+  theme_classic() 
+
+
+#Let's rethink the visualization. 
+#Each point in the nutrient space plot above represents a single diet source for either a young or old leave on a plant. This is a measure of the slope of a rail in nutrient space. So can we plot a "rail-cloud" for each plant species?
+
+plants_filtered %>%
+  mutate(slope = carb_percent/protein_percent) %>%
+  dplyr::select(age, species, protein_percent, carb_percent, slope) %>%
+  ggplot(aes(x = protein_percent, y = carb_percent)) +
+  geom_abline(aes(slope = slope, intercept = 0, lty = age), size = 0.25, alpha = 0.4) +
+  facet_wrap(~species) +
+  theme_classic() +
+  geom_abline(data = plants_filtered %>%
+                mutate(slope = carb_percent/protein_percent) %>%
+                dplyr::select(age, species, protein_percent,carb_percent, slope) %>%
+                group_by(species, age) %>%
+                summarize(median_slope = median(slope)),
+              aes(slope = median_slope, intercept = 0, lty = age),
+              size = 0.75)
+              )
