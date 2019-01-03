@@ -221,3 +221,10 @@ summary(plant_master_master)
 View(plant_master_master %>%
   filter(carb_percent < 0) %>%
   dplyr::select(plant_id, age, mean_carb, carb_weight, carb_percent))
+
+#Checking out weights
+plant_master_master %>%
+  transmute(nutrient_weight = (protein_weight + carb_weight)/20000) %>%
+  filter(!is.na(nutrient_weight)) %>%
+  ggplot(aes(x = nutrient_weight)) +
+  geom_histogram()

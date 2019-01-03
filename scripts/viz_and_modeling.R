@@ -9,7 +9,7 @@ library(lubridate)
 library(skimr)
 
 #Need to pull in and run data manipulation on raw data from google sheets first
-#source("./scripts/standard_curves_merging.R")
+source("./scripts/standard_curves_merging.R", local = TRUE)
 
 #Making sure the dataframe is loaded
 plants = plant_master_master
@@ -55,7 +55,19 @@ protein_percent = plants_filtered %>%
   ggplot(aes(x = species, y = protein_percent, fill = age)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.2) +
-  theme_classic()
+  theme_classic() +
+  ylab("Percent Protein") +
+  xlab("Species") +
+  scale_x_discrete(labels = c("Nicotiana tabacum",
+                              "Datura discolor", 
+                              "Datura wrightii", 
+                              "Capsicum annuum", 
+                              "Probiscidea parviflora", 
+                              "Lycopersicon esculentum", 
+                              "Nicotiana attenuata")) +
+  theme(axis.text.x = element_text(face = "italic")) +
+  scale_fill_discrete(name = "Leaf Age", 
+                      labels = c("Old", "Young"))
 
 ggsave(filename = "./output/protein_percent.png", protein_percent, device = "png")
 
@@ -95,7 +107,6 @@ summary(lmm)
 Anova(lmm)
 
 #Result is that there is a significant effect of age, but not species on protein. Not huge differences.
-
 
 #Carbs
 lmm = lmer(logit(carb_percent) ~ species + age + time_lag + (1|plant_id), data = plants_filtered, REML = FALSE)
@@ -169,18 +180,28 @@ plants_filtered %>%
   ggplot(aes(x = species, y = p_c, fill = age)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.5) +
-  theme_classic() 
+  theme_classic() +
+  ylim(c(0,6))
 
 
 #Let's rethink the visualization. 
 #Each point in the nutrient space plot above represents a single diet source for either a young or old leave on a plant. This is a measure of the slope of a rail in nutrient space. So can we plot a "rail-cloud" for each plant species?
+#
+
+plant_labels = c("CT" = "Nicotiana tabacum",
+                 "DD" = "Datura discolor", 
+                 "DW" = "Datura wrightii", 
+                 "PE" = "Capsicum annuum", 
+                 "PP" = "Probiscidea parviflora", 
+                 "TO" = "Lycopersicon esculentum", 
+                "WT" = "Nicotiana attenuata")
 
 plants_filtered %>%
   mutate(slope = carb_percent/protein_percent) %>%
   dplyr::select(age, species, protein_percent, carb_percent, slope) %>%
   ggplot(aes(x = protein_percent, y = carb_percent)) +
   geom_abline(aes(slope = slope, intercept = 0, lty = age), size = 0.25, alpha = 0.4) +
-  facet_wrap(~species) +
+  facet_wrap(~species, labeller = as_labeller(plant_labels)) +
   theme_classic() +
   geom_abline(data = plants_filtered %>%
                 mutate(slope = carb_percent/protein_percent) %>%
@@ -188,5 +209,16 @@ plants_filtered %>%
                 group_by(species, age) %>%
                 summarize(median_slope = median(slope)),
               aes(slope = median_slope, intercept = 0, lty = age),
-              size = 0.75)
-              )
+              size = 0.75) +
+  geom_abline(slope = 1, intercept = 0, color = "blue") +
+  theme(strip.text = element_text(face = "italic")) +
+  xlab("Percent Protein") +
+  ylab("Percent Carbohydrates")
+
+#Total Nutrient Content
+plants_filtered %>%
+  mutate(nutrient_percent = (carb_weight + protein_weight)/20000) %>%
+  ggplot(aes(x = species, y = nutrient_percent, fill = age)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(group = age), position = position_dodge(width = 0.75), alpha = 0.2) +
+  theme_classic()
