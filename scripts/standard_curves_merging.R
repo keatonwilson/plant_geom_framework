@@ -6,7 +6,6 @@
 #libraries
 library(tidyverse)
 library(googlesheets)
-library(purrr)
 library(broom)
 
 #reading in the data from googlesheets
@@ -15,9 +14,13 @@ gs_ls()
 plant = gs_title("Plant Geometric Framework") #registering the sheet I want
 
 plant_master = gs_read(plant, ws = 1) #turning it into a dataframe/tibble
+Sys.sleep(10) #Added this in between so that when we source this from the viz and modeling script, it doesn't overload the google api.
 plant_carb_curves = gs_read(plant, ws = 2)
+Sys.sleep(10)
 plant_carb_samples = gs_read(plant, ws = 3)
+Sys.sleep(10)
 plant_protein_curves = gs_read(plant, ws = 4)
+Sys.sleep(10)
 plant_protein_samples = gs_read(plant, ws = 5)
 
 #let's visually inspect the standard curves
