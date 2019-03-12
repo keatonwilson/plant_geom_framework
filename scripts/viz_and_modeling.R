@@ -99,6 +99,7 @@ protein_percent = plants_filtered %>%
 protein_percent
 
 ggsave(filename = "./output/protein_percent.png", protein_percent, device = "png")
+ggsave(filename = "./output/protein_percent.tiff", protein_percent, device = "tiff")
 
 #carbs
 carb_percent = plants_filtered %>%
@@ -128,7 +129,7 @@ carb_percent = plants_filtered %>%
 carb_percent
 
 Fig_1 = ggarrange(protein_percent, carb_percent, common.legend = TRUE)
-ggsave(filename = "./output/Fig_1.png", Fig_1, device = "png", width = 14, height = 8)
+ggsave(filename = "./output/Fig_1.tiff", Fig_1, device = "tiff", width = 14, height = 8, dpi = 150)
 
 #messing around with models - probably something nested
 library(lme4)
@@ -269,7 +270,7 @@ clustering = centroids %>%
         axis.title = element_text(size = 18),
         legend.text.align = 0)
   
-ggsave(filename = "./output/Fig_2.png", clustering, device = "png")
+ggsave(filename = "./output/Fig_2.tiff", clustering, device = "tiff", width = 14, height = 8, dpi = 150)
 #Calculating p:c ratios
 
 p_c = plants_filtered %>%
@@ -327,7 +328,7 @@ total_nutrient = plants_filtered %>%
 
 Fig_3 = ggarrange(p_c, total_nutrient, common.legend = TRUE)
 
-ggsave(filename = "./output/Fig_3.png", Fig_3, device = "png", width = 14, height = 8)
+ggsave(filename = "./output/Fig_3.tiff", Fig_3, device = "tiff", width = 14, height = 8, dpi = 150)
 
 #Stats for figures above
 
@@ -394,7 +395,7 @@ nutrient_rails = plants_filtered %>%
   lims(x = c(0,3), y = c(0,3)) +
   annotate(geom = "point", x= 1.587, y = 1.894, size = 4)
 
-ggsave(filename = "./output/Fig_4.png", nutrient_rails, device = "png")
+ggsave(filename = "./output/Fig_4.tiff", nutrient_rails, device = "tiff", dpi = 150)
 
 #Summaries
 plants_filtered %>%
