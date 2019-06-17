@@ -17,6 +17,26 @@ source("./scripts/standard_curves_merging.R", local = TRUE)
 #Making sure the dataframe is loaded
 plants = plant_master_master
 
+#Number of distinct records
+plants %>%
+  dplyr::select(plant_id, age, species, mean_protein, mean_carb) %>%
+  distinct()
+
+#totals
+plants %>%
+  dplyr::select(plant_id, age, species, mean_protein, mean_carb) %>%
+  distinct() %>%
+  group_by(species, plant_id) %>%
+  summarize(nums = n()) %>%
+  summarize(nums = n())
+
+#Let's get rid of duplicates now
+plants %>% 
+  select(plant_id, age, species, mean_protein, mean_carb) %>%
+  distinct()
+
+plants = plants %>%
+  distinct(plant_id, age, species, mean_protein, mean_carb, .keep_all = TRUE)
 #Let's address outliers
 plants %>%
   dplyr::filter(plant_id == 9) %>%
@@ -37,38 +57,28 @@ plants %>%
   dplyr::filter(protein_weight > 10000 | protein_weight < 0) %>%
   dplyr::select(protein_weight, mean_protein, protein_percent, plant_id, age)
 
+plants %>%
+  filter(protein_percent < 0 | protein_percent > 0.75 | carb_percent > 0.75 | carb_percent < 0)
+
 #75% protein by weight is pretty high, but, we'll leave it for now. Get rid of negative value though.
-plants = plants %>%
-  dplyr::filter(protein_weight > 0)
+plants = plants %>% 
+  mutate(protein_percent = ifelse(protein_percent > 0.75 | protein_percent < 0, NA, protein_percent),
+         carb_percent = ifelse(carb_percent > 0.75 | carb_percent < 0, NA, carb_percent))
 
 ggplot(plants, aes(x = protein_percent)) +
-  geom_histogram
+  geom_histogram()
 
 #Much Better
 #On to Carbs
 ggplot(plants, aes(x = carb_percent)) +
   geom_histogram()
 
-#More problems here. Everything above 100% doesn't make sense - same cutoff as protein 
-plants %>%
-  dplyr::filter(carb_percent > 0.75) %>%
-  dplyr::select(plant_id, age, species, mean_carb, carb_weight, carb_percent)
-
-plants_filtered = plants %>%
-  dplyr::filter(protein_weight > 0 & protein_percent < 0.75 & carb_percent < 0.75 & carb_percent > 0)
-
-ggplot(plants_filtered, aes(x = carb_percent)) +
-  geom_histogram()
 
 #Also generating a time period between transplant and collection (proxy for age)
-plants_filtered = plants_filtered %>%
+plants_filtered = plants %>%
   dplyr::mutate(time_lag_interval = interval(tp_date, collect_date),
          time_lag = time_lag_interval %/% days(1)) %>%
   dplyr::select(-tp_date, -collect_date, -time_lag_interval)
-
-plants_filtered = plants_filtered %>%
-  dplyr::select(-sample_id) %>%
-  distinct()
 
 #Preliminary Visualization
 #Protein
@@ -131,7 +141,7 @@ carb_percent
 Fig_1 = ggarrange(protein_percent, carb_percent, common.legend = TRUE)
 ggsave(filename = "./output/Fig_1.tiff", Fig_1, device = "tiff", width = 14, height = 8, dpi = 150)
 
-#messing around with models - probably something nested
+#models
 library(lme4)
 library(nlme)
 library(lmerTest)
@@ -159,16 +169,16 @@ qqp(logit(plants_filtered$protein_percent), "norm")
 logit(plants_filtered$protein_percent)
 
 #protein model
-lmm_protein = lmer(logit(protein_percent) ~ species + age + time_lag + (1|plant_id), data = plants_filtered, REML = FALSE)
+lmm_protein = lmer(logit(protein_percent) ~ species + age + (1|plant_id) + (1|time_lag), data = plants_filtered, REML = FALSE)
 summary(lmm_protein)
-anova(lmm_protein)
+anova(lmm_protein, type = 2)
 
 #Result is that there is a significant effect of age, but not species on protein. Not huge differences.
 
 #Carbs
-lmm_carbs = lmer(logit(carb_percent) ~ species + age + time_lag + (1|plant_id), data = plants_filtered, REML = FALSE)
+lmm_carbs = lmer(logit(carb_percent) ~ species + age + (1|plant_id), data = plants_filtered, REML = FALSE)
 summary(lmm_carbs)
-anova(lmm_carbs)
+anova(lmm_carbs, type = 2)
 
 #Main result here is that there is a significant effect of species, but not age - also time-lag is more improtant here. The older plants had more carbs.
 
@@ -338,7 +348,7 @@ fig_3_analysis = plants_filtered %>%
          total_nutrient = (carb_weight + protein_weight)/20000)
   
 #p_c model
-lmm_pc = lmer(p_c ~ species + age + time_lag + (1|plant_id), 
+lmm_pc = lmer(p_c ~ species + age + (1|plant_id), 
            data = fig_3_analysis, REML = FALSE)
 summary(lmm_pc)
 anova(lmm_pc)
@@ -346,7 +356,7 @@ anova(lmm_pc)
 #Result is that there is a significant effect of age, but not species on protein. Not huge differences.
 
 #Nutrient Content
-lmm_nut = lmer(total_nutrient ~ species + age + time_lag + (1|plant_id), 
+lmm_nut = lmer(total_nutrient ~ species + age + (1|plant_id) + (1|time_lag), 
               data = fig_3_analysis, REML = FALSE)
 summary(lmm_nut)
 anova(lmm_nut)
