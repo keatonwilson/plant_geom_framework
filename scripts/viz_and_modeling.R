@@ -388,7 +388,7 @@ nutrient_rails = plants_filtered %>%
                 mutate(slope = carb_percent/protein_percent) %>%
                 dplyr::select(age, species, protein_percent,carb_percent, slope) %>%
                 group_by(species, age) %>%
-                summarize(median_slope = median(slope)),
+                summarize(median_slope = median(slope, na.rm = TRUE)),
               aes(slope = median_slope, intercept = 0, lty = age),
               size = 0.75) +
   geom_abline(slope = 1, intercept = 0, color = "blue") +
@@ -410,7 +410,7 @@ ggsave(filename = "./output/Fig_4.tiff", nutrient_rails, device = "tiff", dpi = 
 #Summaries
 plants_filtered %>%
   group_by(species) %>%
-  summarize(mean_carb_percent = mean(carb_percent),
-            sd_carb = sd(carb_percent),
-            mean_protein_percent = mean(protein_percent),
-            sd_protein = sd(protein_percent))
+  summarize(mean_carb_percent = mean(carb_percent, na.rm = TRUE),
+            sd_carb = sd(carb_percent, na.rm = TRUE),
+            mean_protein_percent = mean(protein_percent, na.rm = TRUE),
+            sd_protein = sd(protein_percent, na.rm = TRUE))
